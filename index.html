@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Mastermind Quiz - KBC Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #000;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: manipulation; /* Improves touch response */
+            -webkit-tap-highlight-color: transparent; /* Remove blue highlight on tap */
+        }
+
+        /* KBC Background Effect */
+        .studio-bg {
+            background: radial-gradient(circle at center, #1a1a40 0%, #050510 70%, #000000 100%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .light-beam {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(67, 56, 202, 0.1) 20deg, transparent 40deg);
+            top: -50%;
+            left: -50%;
+            animation: rotateBeam 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotateBeam {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hexagonal Buttons */
+        .hex-btn {
+            clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0% 50%); /* Slightly flatter hex for text fit */
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Hover for desktop, Active for mobile */
+        @media (hover: hover) {
+            .hex-btn:hover:not(:disabled) {
+                transform: scale(1.02);
+                background: linear-gradient(90deg, #d97706, #fbbf24, #d97706);
+                border-color: #fff;
+            }
+        }
+        
+        .hex-btn:active:not(:disabled) {
+            transform: scale(0.98);
+            background: linear-gradient(90deg, #d97706, #fbbf24, #d97706);
+            border-color: #fff;
+        }
+
+        .option-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 768px) {
+            .option-container {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+            .hex-btn {
+                clip-path: polygon(3% 0, 97% 0, 100% 50%, 97% 100%, 3% 100%, 0% 50%);
+            }
+        }
+
+        /* Animations */
+        .pulse-gold {
+            animation: pulse-gold 2s infinite;
+        }
+
+        @keyframes pulse-gold {
+            0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+        }
+
+        .correct-answer {
+            background: linear-gradient(90deg, #065f46, #10b981, #065f46) !important;
+            color: white !important;
+            animation: flashGreen 0.5s 3;
+        }
+
+        .wrong-answer {
+            background: linear-gradient(90deg, #7f1d1d, #ef4444, #7f1d1d) !important;
+            color: white !important;
+        }
+
+        .locked-answer {
+            background: linear-gradient(90deg, #92400e, #f59e0b, #92400e) !important;
+            color: black !important;
+            font-weight: bold;
+        }
+
+        /* Custom Scrollbar for Ladder */
+        .ladder-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .ladder-scroll::-webkit-scrollbar-thumb {
+            background: #4f46e5; 
+            border-radius: 4px;
+        }
+
+        .lifeline-used {
+            opacity: 0.3;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+
+        /* AI Typing Effect */
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Mobile Ladder Drawer */
+        #mobile-ladder {
+            transition: transform 0.3s ease-in-out;
+        }
+        .ladder-open {
+            transform: translateX(0) !important;
+        }
+    </style>
+</head>
+<body class="text-white h-[100dvh] w-screen flex flex-col items-center justify-center select-none overflow-hidden">
+
+    <div class="studio-bg">
+        <div class="light-beam"></div>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="z-20 text-center space-y-6 p-6 max-w-2xl w-full flex flex-col items-center justify-center h-full">
+        <h1 class="text-5xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)] mb-2 tracking-tight">
+            MASTERMIND
+        </h1>
+        <p class="text-lg md:text-xl text-indigo-200">15 Questions. 4 Lifelines. 1 Crore.</p>
+        
+        <div class="bg-black/60 p-5 rounded-xl border border-indigo-900/60 backdrop-blur-md w-full max-w-md shadow-2xl">
+            <h3 class="text-yellow-400 font-bold mb-3 border-b border-indigo-800 pb-2">HOW TO PLAY</h3>
+            <ul class="text-left text-gray-300 space-y-3 text-sm md:text-base">
+                <li class="flex items-start"><i class="fas fa-check text-green-400 mt-1 mr-3 w-4"></i> <span>Answer correctly to climb.</span></li>
+                <li class="flex items-start"><i class="fas fa-times text-red-400 mt-1 mr-3 w-4"></i> <span>One wrong answer ends it.</span></li>
+                <li class="flex items-start"><i class="fas fa-life-ring text-blue-400 mt-1 mr-3 w-4"></i> <span>Use lifelines wisely!</span></li>
+            </ul>
+        </div>
+
+        <button onclick="startGame()" class="mt-4 pulse-gold px-10 py-4 bg-gradient-to-r from-indigo-700 to-indigo-500 rounded-full text-xl md:text-2xl font-bold tracking-widest active:scale-95 transition-transform shadow-[0_0_30px_rgba(79,70,229,0.5)] border-2 border-indigo-300/50">
+            PLAY NOW
+        </button>
+        <p class="text-[10px] md:text-xs text-gray-500">Tap to enable audio</p>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="hidden z-10 w-full h-full max-w-7xl mx-auto flex flex-col md:flex-row p-2 md:p-4 gap-2 md:gap-4 relative">
+        
+        <!-- Mobile Ladder Drawer -->
+        <div id="mobile-ladder" class="md:hidden fixed inset-y-0 right-0 w-64 bg-black/95 z-50 transform translate-x-full border-l border-indigo-500 flex flex-col pt-16 pb-4 px-2 shadow-2xl backdrop-blur-xl">
+             <button onclick="toggleLadder()" class="absolute top-4 right-4 text-gray-400 hover:text-white p-2">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <div class="text-center font-bold text-indigo-300 border-b border-indigo-800 pb-2 mb-2">PRIZE LADDER</div>
+            <div id="mobile-money-ladder" class="flex-1 overflow-y-auto ladder-scroll flex flex-col-reverse p-2 gap-1"></div>
+        </div>
+
+        <!-- Main Game Area -->
+        <div class="flex-1 flex flex-col justify-between h-full order-2 md:order-1 relative">
+            
+            <!-- Header Info -->
+            <div class="flex justify-between items-center bg-black/40 p-3 rounded-xl border border-indigo-900/50 backdrop-blur-md shadow-lg">
+                <div class="text-left pl-2">
+                    <p class="text-[10px] text-indigo-400 uppercase tracking-widest font-semibold">Current Prize</p>
+                    <p id="current-prize-display" class="text-2xl md:text-3xl font-bold text-yellow-400 drop-shadow-md">₹0</p>
+                </div>
+                
+                <!-- Timer -->
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-full border-4 border-indigo-500 flex items-center justify-center text-lg md:text-xl font-bold shadow-[0_0_15px_rgba(99,102,241,0.5)] bg-black/50" id="timer-ring">
+                    <span id="timer">30</span>
+                </div>
+
+                <!-- Mobile Ladder Toggle -->
+                <button onclick="toggleLadder()" class="md:hidden w-10 h-10 flex items-center justify-center bg-indigo-900/50 rounded-full border border-indigo-500 text-indigo-300 active:scale-90 transition-transform">
+                    <i class="fas fa-list-ol"></i>
+                </button>
+            </div>
+
+            <!-- Question Area (Centered Vertically) -->
+            <div class="flex-1 flex flex-col justify-center my-2 md:my-0">
+                <!-- Lifelines -->
+                <div class="flex justify-center gap-3 md:gap-4 mb-4 md:mb-8">
+                    <button id="lf-5050" onclick="useLifeline('5050')" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-b from-blue-900 to-black border border-blue-500 flex items-center justify-center active:scale-95 transition-transform shadow-lg" title="50:50">
+                        <span class="text-xs md:text-sm font-bold text-blue-300">50:50</span>
+                    </button>
+                    <button id="lf-poll" onclick="useLifeline('poll')" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-b from-blue-900 to-black border border-blue-500 flex items-center justify-center active:scale-95 transition-transform shadow-lg" title="Audience Poll">
+                        <i class="fas fa-users text-blue-300 text-lg"></i>
+                    </button>
+                    <button id="lf-ai" onclick="useLifeline('ai')" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-b from-purple-900 to-black border border-purple-500 flex items-center justify-center active:scale-95 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.4)]" title="Ask Cyber Sage">
+                        <i class="fas fa-robot text-purple-300 text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Question Box -->
+                <div class="relative group mb-4 md:mb-8 mx-1">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-600 to-transparent opacity-30 blur-lg"></div>
+                    <div class="hex-btn bg-gradient-to-b from-indigo-900 to-black border-y-2 border-indigo-400 p-6 md:p-8 text-center min-h-[100px] md:min-h-[120px] flex items-center justify-center relative z-10 shadow-2xl">
+                        <h2 id="question-text" class="text-lg md:text-2xl font-bold text-white leading-tight">Question loads here...</h2>
+                    </div>
+                </div>
+
+                <!-- Options Grid -->
+                <div class="option-container mx-1">
+                    <button onclick="selectOption(0)" id="opt-0" class="hex-btn w-full py-3 md:py-4 px-4 md:px-8 bg-gradient-to-b from-slate-900 to-black border border-indigo-500/50 text-left active:border-yellow-400 flex items-center group shadow-md min-h-[60px]">
+                        <span class="text-yellow-500 font-bold mr-3 md:mr-4 text-lg md:text-xl group-hover:text-black">A:</span>
+                        <span class="text-base md:text-lg text-indigo-100 group-hover:text-black font-semibold option-text leading-snug">Option 1</span>
+                    </button>
+                    <button onclick="selectOption(1)" id="opt-1" class="hex-btn w-full py-3 md:py-4 px-4 md:px-8 bg-gradient-to-b from-slate-900 to-black border border-indigo-500/50 text-left active:border-yellow-400 flex items-center group shadow-md min-h-[60px]">
+                        <span class="text-yellow-500 font-bold mr-3 md:mr-4 text-lg md:text-xl group-hover:text-black">B:</span>
+                        <span class="text-base md:text-lg text-indigo-100 group-hover:text-black font-semibold option-text leading-snug">Option 2</span>
+                    </button>
+                    <button onclick="selectOption(2)" id="opt-2" class="hex-btn w-full py-3 md:py-4 px-4 md:px-8 bg-gradient-to-b from-slate-900 to-black border border-indigo-500/50 text-left active:border-yellow-400 flex items-center group shadow-md min-h-[60px]">
+                        <span class="text-yellow-500 font-bold mr-3 md:mr-4 text-lg md:text-xl group-hover:text-black">C:</span>
+                        <span class="text-base md:text-lg text-indigo-100 group-hover:text-black font-semibold option-text leading-snug">Option 3</span>
+                    </button>
+                    <button onclick="selectOption(3)" id="opt-3" class="hex-btn w-full py-3 md:py-4 px-4 md:px-8 bg-gradient-to-b from-slate-900 to-black border border-indigo-500/50 text-left active:border-yellow-400 flex items-center group shadow-md min-h-[60px]">
+                        <span class="text-yellow-500 font-bold mr-3 md:mr-4 text-lg md:text-xl group-hover:text-black">D:</span>
+                        <span class="text-base md:text-lg text-indigo-100 group-hover:text-black font-semibold option-text leading-snug">Option 4</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Ladder (Desktop) -->
+        <div class="hidden md:flex flex-col w-64 bg-black/60 border-l border-indigo-900/50 backdrop-blur-md order-1 md:order-2 h-full rounded-l-xl overflow-hidden shadow-2xl">
+            <div class="p-4 bg-indigo-900/30 text-center font-bold text-indigo-300 border-b border-indigo-800 tracking-widest">
+                MONEY LADDER
+            </div>
+            <div id="desktop-money-ladder" class="flex-1 overflow-y-auto ladder-scroll flex flex-col-reverse p-2 gap-1">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-gradient-to-b from-indigo-900 to-black p-6 md:p-8 rounded-2xl border-2 border-red-500 max-w-md w-full text-center shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+            <h2 id="end-title" class="text-3xl md:text-4xl font-bold text-white mb-2">GAME OVER</h2>
+            <p id="end-reason" class="text-indigo-300 mb-6">That was the wrong answer.</p>
+            
+            <div class="bg-black/50 p-4 rounded-lg mb-8 border border-indigo-800">
+                <p class="text-xs md:text-sm text-gray-400 uppercase">You are taking home</p>
+                <p id="final-prize" class="text-3xl md:text-4xl font-bold text-yellow-400 mt-2">₹0</p>
+            </div>
+
+            <button onclick="restartGame()" class="w-full py-3 md:py-4 bg-red-600 active:bg-red-700 text-white font-bold rounded-lg transition text-lg shadow-lg">
+                TRY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <!-- AI Lifeline Modal -->
+    <div id="ai-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 w-full max-w-lg rounded-lg border border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.2)] overflow-hidden">
+            <div class="bg-purple-900/50 p-3 flex justify-between items-center border-b border-purple-700">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-robot text-purple-300"></i>
+                    <span class="font-mono text-purple-200 text-sm">CYBER_SAGE_v2.0</span>
+                </div>
+                <button onclick="closeModal('ai-modal')" class="text-gray-400 hover:text-white px-2 text-xl">&times;</button>
+            </div>
+            <div class="p-6 font-mono text-sm">
+                <div class="mb-4 text-green-400 text-xs md:text-sm">
+                    > Analyzing question pattern...<br>
+                    > Scanning knowledge database...<br>
+                    > Computing probabilities...
+                </div>
+                <div id="ai-response" class="text-white typing-cursor min-h-[80px] text-sm md:text-base leading-relaxed">
+                    <!-- Typed by JS -->
+                </div>
+            </div>
+            <div class="p-3 bg-gray-800 text-center">
+                <button onclick="closeModal('ai-modal')" class="w-full md:w-auto px-6 py-2 bg-purple-700 active:bg-purple-600 rounded text-sm font-bold transition shadow-lg">ACKNOWLEDGE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audience Poll Modal -->
+    <div id="poll-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="bg-indigo-900/95 w-full max-w-md p-6 rounded-xl border border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+            <h3 class="text-xl md:text-2xl font-bold text-center mb-6 text-blue-200">Audience Poll Results</h3>
+            <div class="flex justify-around items-end h-40 md:h-48 gap-3" id="poll-bars">
+                <!-- Bars generated by JS -->
+            </div>
+            <button onclick="closeModal('poll-modal')" class="w-full mt-6 py-3 bg-blue-600 active:bg-blue-500 rounded font-bold shadow-lg">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME DATA ---
+        const prizeLadder = [
+            "₹1,000", "₹2,000", "₹3,000", "₹5,000", "₹10,000", // Safe Haven 1
+            "₹20,000", "₹40,000", "₹80,000", "₹1,60,000", "₹3,20,000", // Safe Haven 2
+            "₹6,40,000", "₹12,50,000", "₹25,00,000", "₹50,00,000", "₹1 Crore"
+        ];
+
+        // --- QUESTION POOLS (Expanded: 20 Questions per level with Nuance) ---
+        const easyPool = [
+            { q: "Which movie's song 'Naatu Naatu' won an Oscar for Best Original Song?", o: ["Pushpa", "KGF 2", "RRR", "Baahubali 2"], a: 2 },
+            { q: "What is the maximum character limit for a standard post on X (formerly Twitter) for a free user?", o: ["140", "280", "420", "500"], a: 1 },
+            { q: "Who is the host of the Hindi TV reality show 'Bigg Boss'?", o: ["Amitabh Bachchan", "Karan Johar", "Salman Khan", "Shah Rukh Khan"], a: 2 },
+            { q: "In the 2023 Cricket World Cup, which team did India defeat in the semi-finals?", o: ["Australia", "New Zealand", "Pakistan", "South Africa"], a: 1 },
+            { q: "What does 'GPT' stand for in ChatGPT?", o: ["General Public Tool", "Generative Pre-trained Transformer", "Google Processing Tech", "Global Positioning Text"], a: 1 },
+            { q: "Which Indian city is often called the 'Silicon Valley of India'?", o: ["Hyderabad", "Pune", "Bengaluru", "Chennai"], a: 2 },
+            { q: "Which bird tries to rescue Sita from Ravana in the Ramayana?", o: ["Garuda", "Sampati", "Jatayu", "Kakabhushundi"], a: 2 },
+            { q: "Which of these is NOT a Unified Payments Interface (UPI) app?", o: ["PhonePe", "Google Pay", "Paytm", "Candy Crush"], a: 3 },
+            { q: "Who is the current CEO of Alphabet (Google)?", o: ["Satya Nadella", "Sundar Pichai", "Tim Cook", "Elon Musk"], a: 1 },
+            { q: "What is the colour of the 2000 Rupee note (which was withdrawn)?", o: ["Stone Grey", "Magenta", "Bright Yellow", "Lavender"], a: 1 },
+            { q: "Which Indian state is popularly known as 'God's Own Country'?", o: ["Goa", "Himachal Pradesh", "Kerala", "Uttarakhand"], a: 2 },
+            { q: "What is the 'fifth taste' discovered by Japanese scientists, often described as savory?", o: ["Spicy", "Umami", "Bitter", "Sour"], a: 1 },
+            { q: "Who replaced Rohit Sharma as the captain of Mumbai Indians for IPL 2024?", o: ["Suryakumar Yadav", "Hardik Pandya", "Jasprit Bumrah", "Ishan Kishan"], a: 1 },
+            { q: "Which Yoga Asana is also commonly known as the 'Lotus Position'?", o: ["Shavasana", "Padmasana", "Tadasana", "Vrikshasana"], a: 1 },
+            { q: "Which of these animals is the 'National Aquatic Animal' of India?", o: ["Crocodile", "Ganges River Dolphin", "Blue Whale", "Gharial"], a: 1 },
+            { q: "Historically, which spice was known as 'Black Gold'?", o: ["Cardamom", "Clove", "Black Pepper", "Cumin"], a: 2 },
+            { q: "In the game of Chess, which is the only piece that can jump over others?", o: ["Bishop", "Rook", "Knight", "Pawn"], a: 2 },
+            { q: "The Indian National Anthem 'Jana Gana Mana' was originally composed in which language?", o: ["Hindi", "Sanskrit", "Bengali", "Marathi"], a: 2 },
+            { q: "Which popular social media app features a white 'Ghost' on a yellow background as its logo?", o: ["Instagram", "Snapchat", "Pinterest", "Reddit"], a: 1 },
+            { q: "In banking, what does the acronym 'KYC' stand for?", o: ["Keep Your Cash", "Know Your Customer", "Key Yield Credit", "Know Your Currency"], a: 1 }
+        ];
+
+        const mediumPool = [
+            { q: "The 'Aditya-L1' mission was launched to study which celestial body?", o: ["Moon", "Mars", "Sun", "Venus"], a: 2 },
+            { q: "Who is the architect of the new Indian Parliament building?", o: ["Bimal Patel", "Hafeez Contractor", "Charles Correa", "Brinda Somaya"], a: 0 },
+            { q: "Which gas is flushed into potato chip packets to prevent them from turning rancid?", o: ["Oxygen", "Nitrogen", "Helium", "Hydrogen"], a: 1 },
+            { q: "Who was the first Indian woman to win an Olympic medal?", o: ["P.T. Usha", "Mary Kom", "Saina Nehwal", "Karnam Malleswari"], a: 3 },
+            { q: "Which Indian movie was the country's official entry for the 2025 Oscars?", o: ["12th Fail", "Laapataa Ladies", "Animal", "Jawan"], a: 1 },
+            { q: "The 'Statue of Unity' is located on the banks of which river?", o: ["Ganga", "Yamuna", "Tapi", "Narmada"], a: 3 },
+            { q: "Who directed the movie '12th Fail'?", o: ["Rajkumar Hirani", "Vidhu Vinod Chopra", "Anurag Kashyap", "Zoya Akhtar"], a: 1 },
+            { q: "Which element is the primary component of mobile phone batteries?", o: ["Cadmium", "Lead", "Lithium", "Nickel"], a: 2 },
+            { q: "Who wrote the famous autobiography 'Wings of Fire'?", o: ["Jawaharlal Nehru", "A.P.J. Abdul Kalam", "Sachin Tendulkar", "M.K. Gandhi"], a: 1 },
+            { q: "In which year was the 'Right to Information' (RTI) Act passed in India?", o: ["2000", "2005", "2010", "2014"], a: 1 },
+            { q: "Which city was officially renamed to Prayagraj in 2018?", o: ["Varanasi", "Allahabad", "Lucknow", "Faizabad"], a: 1 },
+            { q: "The 'Kada', 'Kirpan', and 'Kesh' are part of the 'Five Ks' of which religion?", o: ["Jainism", "Buddhism", "Sikhism", "Hinduism"], a: 2 },
+            { q: "Who was the first Indian to win the Miss World title (not to be confused with Miss Universe)?", o: ["Aishwarya Rai", "Sushmita Sen", "Reita Faria", "Priyanka Chopra"], a: 2 },
+            { q: "Which layer of the Earth's atmosphere contains the Ozone layer that protects us from UV rays?", o: ["Troposphere", "Stratosphere", "Mesosphere", "Exosphere"], a: 1 },
+            { q: "The famous 'Dandi March' led by Mahatma Gandhi began in which year?", o: ["1920", "1930", "1942", "1947"], a: 1 },
+            { q: "The chemical compound 'Sodium Bicarbonate' is commonly known in households as what?", o: ["Washing Soda", "Baking Soda", "Bleaching Powder", "Common Salt"], a: 1 },
+            { q: "Who is the author of the Booker Prize-winning novel 'The God of Small Things'?", o: ["Jhumpa Lahiri", "Kiran Desai", "Arundhati Roy", "Chetan Bhagat"], a: 2 },
+            { q: "Which Indian state shares its border with the maximum number of other states?", o: ["Madhya Pradesh", "Assam", "Uttar Pradesh", "Chhattisgarh"], a: 2 },
+            { q: "The 'H1N1' virus is commonly associated with which disease?", o: ["Bird Flu", "Swine Flu", "Dengue", "Chikungunya"], a: 1 },
+            { q: "In the Mahabharata, what was the name of the divine bow used by Arjuna?", o: ["Pinaka", "Gandiva", "Sharanga", "Vijaya"], a: 1 }
+        ];
+
+        const hardPool = [
+            { q: "Who was the first person to resign from the post of Prime Minister of India?", o: ["Charan Singh", "V.P. Singh", "Morarji Desai", "H.D. Deve Gowda"], a: 2 },
+            { q: "The 'Sengol' installed in the new Parliament building belongs to the traditions of which ancient dynasty?", o: ["Chola", "Pandya", "Maurya", "Gupta"], a: 0 },
+            { q: "Who is the only Indian to have won an Oscar for Lifetime Achievement?", o: ["A.R. Rahman", "Gulzar", "Satyajit Ray", "Bhanu Athaiya"], a: 2 },
+            { q: "Which Article of the Indian Constitution deals with the 'Uniform Civil Code'?", o: ["Article 44", "Article 370", "Article 21", "Article 51A"], a: 0 },
+            { q: "What was the code name for the Indian Armed Forces operation to annex Goa in 1961?", o: ["Operation Polo", "Operation Vijay", "Operation Blue Star", "Operation Cactus"], a: 1 },
+            { q: "Who designed the symbol of the Indian Rupee (₹)?", o: ["Nandalal Bose", "Udaya Kumar Dharmalingam", "Pingali Venkayya", "R.K. Laxman"], a: 1 },
+            { q: "Which is the only floating national park in the world, located in India?", o: ["Kaziranga", "Sundarbans", "Keibul Lamjao", "Jim Corbett"], a: 2 },
+            { q: "Who was the first Indian to be elected to the British Parliament?", o: ["Dadabhai Naoroji", "Raja Ram Mohan Roy", "Gopal Krishna Gokhale", "M.K. Gandhi"], a: 0 },
+            { q: "Which is the first Indian heritage site to be inscribed on the UNESCO World Heritage List (1983)?", o: ["Taj Mahal", "Qutub Minar", "Red Fort", "Hampi"], a: 0 },
+            { q: "Who was the Defense Minister of India during the 1971 Indo-Pak war?", o: ["Y.B. Chavan", "Jagjivan Ram", "Sardar Swaran Singh", "V.K. Krishna Menon"], a: 1 },
+            { q: "Which is the only continent that covers all four hemispheres (North, South, East, and West)?", o: ["Asia", "Africa", "Europe", "South America"], a: 1 },
+            { q: "Who served as the first Chief Election Commissioner of India?", o: ["T.N. Seshan", "Sukumar Sen", "Kalyan Sundaram", "S.P. Sen Verma"], a: 1 },
+            { q: "The 'Pravasi Bharatiya Divas' is celebrated on January 9 to mark Mahatma Gandhi's return from which country?", o: ["England", "South Africa", "USA", "Japan"], a: 1 },
+            { q: "Which specific isotope of Uranium is primarily used as fuel in nuclear fission reactors?", o: ["U-238", "U-235", "U-234", "U-239"], a: 1 },
+            { q: "Who was the only President of India to be elected unopposed?", o: ["Dr. Rajendra Prasad", "A.P.J. Abdul Kalam", "Neelam Sanjiva Reddy", "Giani Zail Singh"], a: 2 },
+            { q: "The 'Hornbill Festival', often called the 'Festival of Festivals', is celebrated in which state?", o: ["Manipur", "Mizoram", "Nagaland", "Meghalaya"], a: 2 },
+            { q: "In the hierarchy of Indian civilian awards, which award ranks immediately below the Bharat Ratna?", o: ["Padma Bhushan", "Padma Shri", "Padma Vibhushan", "Gallantry Award"], a: 2 },
+            { q: "Which battle in 1764 marked the decisive victory of the British East India Company over the combined forces of the Mughals and Nawabs?", o: ["Battle of Plassey", "Battle of Buxar", "Battle of Haldighati", "Battle of Panipat"], a: 1 },
+            { q: "What is the scientific name of the Indian National Bird (Peacock)?", o: ["Panthera tigris", "Pavo cristatus", "Elephas maximus", "Naja naja"], a: 1 },
+            { q: "Which Schedule of the Indian Constitution deals with the 'Anti-Defection Law'?", o: ["8th Schedule", "9th Schedule", "10th Schedule", "11th Schedule"], a: 2 }
+        ];
+
+        // Active questions for the current game
+        let questions = [];
+
+        function getRandomQuestions(pool, count) {
+            // Fisher-Yates shuffle approximation using sort
+            const shuffled = [...pool].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        }
+
+        function generateGameQuestions() {
+            // Select 5 random questions from each pool
+            questions = [
+                ...getRandomQuestions(easyPool, 5),
+                ...getRandomQuestions(mediumPool, 5),
+                ...getRandomQuestions(hardPool, 5)
+            ];
+        }
+
+        // --- AUDIO ENGINE (No external files!) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        
+        const soundEngine = {
+            init: () => {
+                if (!audioCtx) audioCtx = new AudioContext();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            },
+            playTone: (freq, type, duration, vol = 0.1) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            playClick: () => soundEngine.playTone(800, 'sine', 0.1, 0.05),
+            playLock: () => {
+                // Suspenseful drone
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc1.frequency.setValueAtTime(100, audioCtx.currentTime);
+                osc2.frequency.setValueAtTime(103, audioCtx.currentTime); // Beat freq
+                
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
+                
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc1.start(); osc2.start();
+                osc1.stop(audioCtx.currentTime + 2); osc2.stop(audioCtx.currentTime + 2);
+            },
+            playCorrect: () => {
+                soundEngine.playTone(440, 'triangle', 0.5, 0.1); // A4
+                setTimeout(() => soundEngine.playTone(554, 'triangle', 0.5, 0.1), 100); // C#5
+                setTimeout(() => soundEngine.playTone(659, 'triangle', 0.8, 0.1), 200); // E5
+            },
+            playWrong: () => {
+                soundEngine.playTone(150, 'sawtooth', 0.8, 0.2);
+                setTimeout(() => soundEngine.playTone(130, 'sawtooth', 0.8, 0.2), 200);
+            },
+            playLifeline: () => {
+                soundEngine.playTone(1200, 'sine', 0.2, 0.1);
+                setTimeout(() => soundEngine.playTone(2000, 'sine', 0.4, 0.1), 100);
+            }
+        };
+
+        // --- GAME LOGIC ---
+        let currentLevel = 0;
+        let isGameActive = false;
+        let canAnswer = false;
+        let timerInterval;
+        let timeLeft = 30;
+        let lifelines = {
+            '5050': true,
+            'poll': true,
+            'ai': true
+        };
+        let isLadderOpen = false;
+
+        function startGame() {
+            soundEngine.init();
+            soundEngine.playClick();
+
+            // Generate a fresh set of questions for this session
+            generateGameQuestions();
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('flex');
+            document.getElementById('game-over-modal').classList.add('hidden');
+            
+            currentLevel = 0;
+            lifelines = { '5050': true, 'poll': true, 'ai': true };
+            
+            // Reset UI
+            document.querySelectorAll('.lifeline-used').forEach(el => el.classList.remove('lifeline-used'));
+            buildLadder('desktop-money-ladder');
+            buildLadder('mobile-money-ladder');
+            loadQuestion();
+        }
+
+        function toggleLadder() {
+            const ladder = document.getElementById('mobile-ladder');
+            isLadderOpen = !isLadderOpen;
+            if(isLadderOpen) {
+                ladder.classList.add('ladder-open');
+            } else {
+                ladder.classList.remove('ladder-open');
+            }
+            soundEngine.playClick();
+        }
+
+        function buildLadder(elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            prizeLadder.forEach((prize, index) => {
+                const div = document.createElement('div');
+                div.className = `p-2 rounded flex justify-between text-xs md:text-sm ${index % 5 === 4 ? 'text-white font-bold' : 'text-orange-300'}`;
+                div.id = `${elementId}-${index}`;
+                div.innerHTML = `<span>${index + 1}</span> <span>${prize}</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function updateLadder() {
+            const ids = ['desktop-money-ladder', 'mobile-money-ladder'];
+            
+            ids.forEach(baseId => {
+                // Reset all
+                for(let i=0; i<prizeLadder.length; i++) {
+                    const el = document.getElementById(`${baseId}-${i}`);
+                    if(el) {
+                        el.classList.remove('bg-orange-500', 'text-black');
+                        el.classList.add(i % 5 === 4 ? 'text-white' : 'text-orange-300');
+                    }
+                }
+                // Highlight current
+                const currentEl = document.getElementById(`${baseId}-${currentLevel}`);
+                if(currentEl) {
+                    currentEl.classList.remove('text-orange-300', 'text-white');
+                    currentEl.classList.add('bg-orange-500', 'text-black', 'font-bold');
+                    currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+            
+            // Update prize display
+            document.getElementById('current-prize-display').innerText = currentLevel > 0 ? prizeLadder[currentLevel - 1] : "₹0";
+        }
+
+        function loadQuestion() {
+            isGameActive = true;
+            canAnswer = true;
+            updateLadder();
+            
+            const qData = questions[currentLevel];
+            document.getElementById('question-text').innerText = qData.q;
+            
+            // Reset options UI
+            for(let i=0; i<4; i++) {
+                const btn = document.getElementById(`opt-${i}`);
+                btn.classList.remove('correct-answer', 'wrong-answer', 'locked-answer', 'opacity-0', 'pointer-events-none');
+                btn.querySelector('.option-text').innerText = qData.o[i];
+                btn.disabled = false;
+            }
+
+            // Timer Logic
+            clearInterval(timerInterval);
+            timeLeft = currentLevel < 5 ? 30 : currentLevel < 10 ? 60 : 0; // No timer for last levels
+            
+            const timerEl = document.getElementById('timer');
+            if (timeLeft > 0) {
+                timerEl.innerText = timeLeft;
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    timerEl.innerText = timeLeft;
+                    if(timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        gameOver("Time's Up!");
+                    }
+                }, 1000);
+            } else {
+                timerEl.innerText = "∞";
+            }
+        }
+
+        function selectOption(index) {
+            if (!canAnswer) return;
+            canAnswer = false; // Prevent multiple clicks
+            clearInterval(timerInterval);
+            soundEngine.playLock();
+
+            // Visual: Lock Answer (Orange)
+            const selectedBtn = document.getElementById(`opt-${index}`);
+            selectedBtn.classList.add('locked-answer');
+
+            // Suspense Delay
+            setTimeout(() => {
+                checkAnswer(index);
+            }, 2000);
+        }
+
+        function checkAnswer(selectedIndex) {
+            const correctIndex = questions[currentLevel].a;
+            const selectedBtn = document.getElementById(`opt-${selectedIndex}`);
+            const correctBtn = document.getElementById(`opt-${correctIndex}`);
+
+            selectedBtn.classList.remove('locked-answer');
+
+            if (selectedIndex === correctIndex) {
+                // CORRECT
+                selectedBtn.classList.add('correct-answer');
+                soundEngine.playCorrect();
+                
+                setTimeout(() => {
+                    currentLevel++;
+                    if (currentLevel >= questions.length) {
+                        gameWon();
+                    } else {
+                        loadQuestion();
+                    }
+                }, 2000);
+            } else {
+                // WRONG
+                selectedBtn.classList.add('wrong-answer');
+                correctBtn.classList.add('correct-answer'); // Show right answer
+                soundEngine.playWrong();
+                setTimeout(() => {
+                    gameOver("Wrong Answer");
+                }, 2000);
+            }
+        }
+
+        // --- LIFELINES ---
+        function useLifeline(type) {
+            if (!isGameActive || !canAnswer || !lifelines[type]) return;
+            
+            soundEngine.playLifeline();
+            lifelines[type] = false;
+            document.getElementById(`lf-${type}`).classList.add('lifeline-used');
+
+            const correctIdx = questions[currentLevel].a;
+
+            if (type === '5050') {
+                // Remove 2 wrong answers
+                let removed = 0;
+                let wrongIndices = [0, 1, 2, 3].filter(i => i !== correctIdx);
+                // Shuffle to randomize which wrong ones stay
+                wrongIndices.sort(() => Math.random() - 0.5);
+                
+                wrongIndices.slice(0, 2).forEach(idx => {
+                    const btn = document.getElementById(`opt-${idx}`);
+                    btn.querySelector('.option-text').innerText = "";
+                    btn.classList.add('opacity-0', 'pointer-events-none');
+                });
+            } else if (type === 'poll') {
+                showPollModal(correctIdx);
+            } else if (type === 'ai') {
+                showAiModal(correctIdx);
+            }
+        }
+
+        function showPollModal(correctIdx) {
+            const modal = document.getElementById('poll-modal');
+            const container = document.getElementById('poll-bars');
+            container.innerHTML = '';
+            modal.classList.remove('hidden');
+
+            // Generate skewed percentages favoring correct answer
+            let percentages = [0,0,0,0];
+            percentages[correctIdx] = 40 + Math.floor(Math.random() * 30); // 40-70% for correct
+            let remaining = 100 - percentages[correctIdx];
+            
+            for(let i=0; i<4; i++) {
+                if(i !== correctIdx) {
+                    let val = Math.floor(Math.random() * (remaining / 2));
+                    percentages[i] = val;
+                    remaining -= val;
+                }
+            }
+            // Add leftover to a random wrong one
+            let randomWrong = [0,1,2,3].filter(i => i!==correctIdx)[0];
+            percentages[randomWrong] += remaining;
+
+            ['A','B','C','D'].forEach((label, i) => {
+                const height = percentages[i];
+                const bar = document.createElement('div');
+                bar.className = 'flex flex-col items-center justify-end h-full w-10 md:w-12';
+                bar.innerHTML = `
+                    <div class="text-white font-bold mb-1 text-xs md:text-base">${percentages[i]}%</div>
+                    <div class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div>
+                    <div class="text-blue-300 font-bold mt-2 text-xs md:text-base">${label}</div>
+                `;
+                container.appendChild(bar);
+                // Animate height
+                setTimeout(() => {
+                    bar.children[1].style.height = `${height}%`;
+                }, 100);
+            });
+        }
+
+        function showAiModal(correctIdx) {
+            const modal = document.getElementById('ai-modal');
+            const textBox = document.getElementById('ai-response');
+            modal.classList.remove('hidden');
+            textBox.innerHTML = '';
+
+            const options = ["Option A", "Option B", "Option C", "Option D"];
+            const explanations = [
+                "It's a common fact in this field.",
+                "I recall processing this data recently.",
+                "The other options seem logically inconsistent.",
+                "Historical records strongly support this choice."
+            ];
+            
+            const randomExp = explanations[Math.floor(Math.random() * explanations.length)];
+            const text = `I am ${90 + Math.floor(Math.random() * 9)}% confident the answer is ${options[correctIdx]}. ${randomExp}`;
+
+            let i = 0;
+            const typeInterval = setInterval(() => {
+                textBox.innerText += text.charAt(i);
+                i++;
+                if(i >= text.length) clearInterval(typeInterval);
+            }, 30);
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // --- GAME END ---
+        function gameOver(reason) {
+            isGameActive = false;
+            const modal = document.getElementById('game-over-modal');
+            document.getElementById('end-title').innerText = "GAME OVER";
+            document.getElementById('end-title').classList.add('text-red-500');
+            document.getElementById('end-reason').innerText = reason;
+            
+            // Calculate safety net prize
+            let winAmount = "₹0";
+            if (currentLevel >= 10) winAmount = "₹3,20,000";
+            else if (currentLevel >= 5) winAmount = "₹10,000";
+            
+            document.getElementById('final-prize').innerText = winAmount;
+            modal.classList.remove('hidden');
+        }
+
+        function gameWon() {
+            isGameActive = false;
+            const modal = document.getElementById('game-over-modal');
+            document.getElementById('end-title').innerText = "CROREPATI!";
+            document.getElementById('end-title').className = "text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 mb-2";
+            document.getElementById('end-reason').innerText = "You have answered all questions correctly!";
+            document.getElementById('final-prize').innerText = "₹1 Crore";
+            modal.classList.remove('hidden');
+            
+            // Victory sound fanfare
+            soundEngine.playTone(523, 'sine', 0.2);
+            setTimeout(() => soundEngine.playTone(659, 'sine', 0.2), 200);
+            setTimeout(() => soundEngine.playTone(783, 'sine', 0.4), 400);
+            setTimeout(() => soundEngine.playTone(1046, 'sine', 1.0), 600);
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+    </script>
+</body>
+</html>
