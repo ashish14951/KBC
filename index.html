@@ -53,7 +53,7 @@
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        /* Hover for desktop, Active for mobile */
+        /* Hover for desktop only - Prevents sticky hover on mobile */
         @media (hover: hover) {
             .hex-btn:hover:not(:disabled) {
                 transform: scale(1.02);
@@ -141,6 +141,24 @@
         .ladder-open {
             transform: translateX(0) !important;
         }
+
+        /* Confetti Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 60;
+        }
+
+        /* Input Styling */
+        .neon-input:focus {
+            outline: none;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.6);
+            border-color: #6366f1;
+        }
     </style>
 </head>
 <body class="text-white h-[100dvh] w-screen flex flex-col items-center justify-center select-none overflow-hidden">
@@ -148,20 +166,34 @@
     <div class="studio-bg">
         <div class="light-beam"></div>
     </div>
+    
+    <canvas id="confetti-canvas"></canvas>
 
     <!-- START SCREEN -->
-    <div id="start-screen" class="z-20 text-center space-y-6 p-6 max-w-2xl w-full flex flex-col items-center justify-center h-full">
+    <div id="start-screen" class="z-20 text-center space-y-4 p-6 max-w-2xl w-full flex flex-col items-center justify-center h-full">
         <h1 class="text-5xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)] mb-2 tracking-tight">
             MASTERMIND
         </h1>
+        
+        <!-- High Score Badge -->
+        <div class="bg-indigo-900/50 px-4 py-1 rounded-full border border-indigo-500/50 mb-2">
+            <span class="text-indigo-300 text-sm mr-2">TOP SCORE:</span>
+            <span id="high-score-display" class="text-yellow-400 font-bold">₹0</span>
+        </div>
+
         <p class="text-lg md:text-xl text-indigo-200">15 Questions. 4 Lifelines. 1 Crore.</p>
         
-        <div class="bg-black/60 p-5 rounded-xl border border-indigo-900/60 backdrop-blur-md w-full max-w-md shadow-2xl">
-            <h3 class="text-yellow-400 font-bold mb-3 border-b border-indigo-800 pb-2">HOW TO PLAY</h3>
-            <ul class="text-left text-gray-300 space-y-3 text-sm md:text-base">
-                <li class="flex items-start"><i class="fas fa-check text-green-400 mt-1 mr-3 w-4"></i> <span>Answer correctly to climb.</span></li>
-                <li class="flex items-start"><i class="fas fa-times text-red-400 mt-1 mr-3 w-4"></i> <span>One wrong answer ends it.</span></li>
-                <li class="flex items-start"><i class="fas fa-life-ring text-blue-400 mt-1 mr-3 w-4"></i> <span>Use lifelines wisely!</span></li>
+        <!-- Name Input Section -->
+        <div class="w-full max-w-xs space-y-2 mt-4">
+            <label class="text-xs text-indigo-300 uppercase tracking-widest block text-left pl-2">Enter Your Name</label>
+            <input type="text" id="player-name" placeholder="Naam toh suna hoga..." class="neon-input w-full bg-black/60 border-2 border-indigo-700 rounded-lg py-3 px-4 text-center text-white font-bold text-lg placeholder-gray-500 transition-all">
+        </div>
+
+        <div class="bg-black/60 p-4 rounded-xl border border-indigo-900/60 backdrop-blur-md w-full max-w-md shadow-2xl mt-4">
+            <h3 class="text-yellow-400 font-bold mb-2 border-b border-indigo-800 pb-1 text-sm">RULES</h3>
+            <ul class="text-left text-gray-300 space-y-1 text-sm">
+                <li class="flex items-start"><i class="fas fa-check text-green-400 mt-1 mr-3 w-3"></i> <span>Answer correctly to climb.</span></li>
+                <li class="flex items-start"><i class="fas fa-times text-red-400 mt-1 mr-3 w-3"></i> <span>One wrong answer ends it.</span></li>
             </ul>
         </div>
 
@@ -262,18 +294,35 @@
 
     <!-- MODALS -->
     
+    <!-- Milestone Modal -->
+    <div id="milestone-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in zoom-in duration-300">
+        <div class="bg-gradient-to-b from-indigo-800 to-black p-8 rounded-2xl border-4 border-yellow-500 max-w-sm w-full text-center shadow-[0_0_50px_rgba(234,179,8,0.5)] transform scale-100">
+            <h2 class="text-3xl font-bold text-yellow-300 mb-2">MILESTONE!</h2>
+            <div class="text-indigo-200 mb-6">Bach Gaye Guru!</div>
+            <p id="milestone-amount" class="text-5xl font-bold text-white drop-shadow-md">₹10,000</p>
+        </div>
+    </div>
+
     <!-- Game Over Modal -->
-    <div id="game-over-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center backdrop-blur-sm p-4">
-        <div class="bg-gradient-to-b from-indigo-900 to-black p-6 md:p-8 rounded-2xl border-2 border-red-500 max-w-md w-full text-center shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+    <div id="game-over-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-gradient-to-b from-indigo-900 to-black p-6 md:p-8 rounded-2xl border-2 border-red-500 max-w-md w-full text-center shadow-[0_0_50px_rgba(239,68,68,0.3)] my-8">
             <h2 id="end-title" class="text-3xl md:text-4xl font-bold text-white mb-2">GAME OVER</h2>
-            <p id="end-reason" class="text-indigo-300 mb-6">That was the wrong answer.</p>
+            <img id="victory-img" src="amitabh-bachchan-amitabh-bachchan-kbc.gif" class="hidden w-48 mx-auto rounded-lg mb-4 border-2 border-yellow-400 shadow-lg object-cover" alt="Victory Celebration">
             
-            <div class="bg-black/50 p-4 rounded-lg mb-8 border border-indigo-800">
-                <p class="text-xs md:text-sm text-gray-400 uppercase">You are taking home</p>
+            <p id="slang-msg" class="text-xl text-yellow-300 font-bold mb-2 italic">"Tumse na ho payega!"</p>
+            <p id="end-reason" class="text-indigo-400 mb-6 text-sm">That was the wrong answer.</p>
+            
+            <div class="bg-black/50 p-4 rounded-lg mb-6 border border-indigo-800">
+                <p class="text-xs md:text-sm text-gray-400 uppercase">You won</p>
                 <p id="final-prize" class="text-3xl md:text-4xl font-bold text-yellow-400 mt-2">₹0</p>
             </div>
 
-            <button onclick="restartGame()" class="w-full py-3 md:py-4 bg-red-600 active:bg-red-700 text-white font-bold rounded-lg transition text-lg shadow-lg">
+            <!-- Share Button -->
+            <button onclick="shareScore()" class="w-full py-3 bg-green-600 active:bg-green-700 text-white font-bold rounded-lg transition text-lg shadow-lg mb-3 flex items-center justify-center gap-2">
+                <i class="fab fa-whatsapp text-xl"></i> Dosto Ko Jalao
+            </button>
+
+            <button onclick="restartGame()" class="w-full py-3 bg-red-600 active:bg-red-700 text-white font-bold rounded-lg transition text-lg shadow-lg">
                 TRY AGAIN
             </button>
         </div>
@@ -324,7 +373,7 @@
             "₹6,40,000", "₹12,50,000", "₹25,00,000", "₹50,00,000", "₹1 Crore"
         ];
 
-        // --- QUESTION POOLS (Expanded: 20 Questions per level with Nuance) ---
+        // --- QUESTION POOLS (Expanded: 35 Questions per level) ---
         const easyPool = [
             { q: "Which movie's song 'Naatu Naatu' won an Oscar for Best Original Song?", o: ["Pushpa", "KGF 2", "RRR", "Baahubali 2"], a: 2 },
             { q: "What is the maximum character limit for a standard post on X (formerly Twitter) for a free user?", o: ["140", "280", "420", "500"], a: 1 },
@@ -345,7 +394,23 @@
             { q: "In the game of Chess, which is the only piece that can jump over others?", o: ["Bishop", "Rook", "Knight", "Pawn"], a: 2 },
             { q: "The Indian National Anthem 'Jana Gana Mana' was originally composed in which language?", o: ["Hindi", "Sanskrit", "Bengali", "Marathi"], a: 2 },
             { q: "Which popular social media app features a white 'Ghost' on a yellow background as its logo?", o: ["Instagram", "Snapchat", "Pinterest", "Reddit"], a: 1 },
-            { q: "In banking, what does the acronym 'KYC' stand for?", o: ["Keep Your Cash", "Know Your Customer", "Key Yield Credit", "Know Your Currency"], a: 1 }
+            { q: "In banking, what does the acronym 'KYC' stand for?", o: ["Keep Your Cash", "Know Your Customer", "Key Yield Credit", "Know Your Currency"], a: 1 },
+            // New Additions (15)
+            { q: "Who composed the song 'Jai Ho'?", o: ["A.R. Rahman", "Shankar Mahadevan", "Vishal-Shekhar", "Pritam"], a: 0 },
+            { q: "What is the currency of Bangladesh?", o: ["Rupee", "Taka", "Yen", "Dollar"], a: 1 },
+            { q: "Which is the largest mammal on Earth?", o: ["African Elephant", "Blue Whale", "Giraffe", "Hippopotamus"], a: 1 },
+            { q: "The movie 'Dangal' is based on which sport?", o: ["Boxing", "Cricket", "Wrestling", "Hockey"], a: 2 },
+            { q: "What is the capital of Maharashtra?", o: ["Pune", "Nagpur", "Mumbai", "Nashik"], a: 2 },
+            { q: "How many players are there in a Kabaddi team on the court?", o: ["5", "6", "7", "9"], a: 2 },
+            { q: "Who is affectionately known as 'Thala' in the IPL?", o: ["Virat Kohli", "Rohit Sharma", "MS Dhoni", "Suresh Raina"], a: 2 },
+            { q: "What is the opposite direction of North?", o: ["East", "West", "South", "North-East"], a: 2 },
+            { q: "What is the primary ingredient in an omelette?", o: ["Flour", "Milk", "Egg", "Rice"], a: 2 },
+            { q: "Which festival is known as the 'Festival of Lights'?", o: ["Holi", "Eid", "Diwali", "Christmas"], a: 2 },
+            { q: "The movie 'Chak De! India' revolves around which sport?", o: ["Cricket", "Football", "Hockey", "Badminton"], a: 2 },
+            { q: "Who was the first woman Prime Minister of India?", o: ["Sarojini Naidu", "Indira Gandhi", "Pratibha Patil", "Sushma Swaraj"], a: 1 },
+            { q: "How many zeros are there in the number one thousand?", o: ["2", "3", "4", "5"], a: 1 },
+            { q: "Which fruit has its seeds on the outside?", o: ["Apple", "Mango", "Strawberry", "Guava"], a: 2 },
+            { q: "The street food 'Gol Gappa' is also widely known as?", o: ["Pani Puri", "Vada Pav", "Samosa", "Jalebi"], a: 0 }
         ];
 
         const mediumPool = [
@@ -368,7 +433,23 @@
             { q: "Who is the author of the Booker Prize-winning novel 'The God of Small Things'?", o: ["Jhumpa Lahiri", "Kiran Desai", "Arundhati Roy", "Chetan Bhagat"], a: 2 },
             { q: "Which Indian state shares its border with the maximum number of other states?", o: ["Madhya Pradesh", "Assam", "Uttar Pradesh", "Chhattisgarh"], a: 2 },
             { q: "The 'H1N1' virus is commonly associated with which disease?", o: ["Bird Flu", "Swine Flu", "Dengue", "Chikungunya"], a: 1 },
-            { q: "In the Mahabharata, what was the name of the divine bow used by Arjuna?", o: ["Pinaka", "Gandiva", "Sharanga", "Vijaya"], a: 1 }
+            { q: "In the Mahabharata, what was the name of the divine bow used by Arjuna?", o: ["Pinaka", "Gandiva", "Sharanga", "Vijaya"], a: 1 },
+            // New Additions (15)
+            { q: "Which team won the very first season of the IPL?", o: ["Chennai Super Kings", "Mumbai Indians", "Rajasthan Royals", "Deccan Chargers"], a: 2 },
+            { q: "What is the chemical symbol for Silver?", o: ["Si", "Ag", "Au", "Pb"], a: 1 },
+            { q: "Who is the author of the book 'The Discovery of India'?", o: ["Mahatma Gandhi", "Jawaharlal Nehru", "Sardar Patel", "Indira Gandhi"], a: 1 },
+            { q: "What is the total number of Vedas in Hindu scripture?", o: ["3", "4", "5", "6"], a: 1 },
+            { q: "Which planet in our solar system is known for its prominent rings?", o: ["Jupiter", "Saturn", "Uranus", "Neptune"], a: 1 },
+            { q: "Where is the headquarters of ISRO located?", o: ["Sriharikota", "Thiruvananthapuram", "Bengaluru", "New Delhi"], a: 2 },
+            { q: "Who is traditionally attributed as the author of the 'Natya Shastra'?", o: ["Kalidasa", "Bharat Muni", "Valmiki", "Vyasa"], a: 1 },
+            { q: "Which is the longest bone in the human body?", o: ["Tibia", "Fibula", "Femur", "Humerus"], a: 2 },
+            { q: "Which mountain pass connects Srinagar to Leh?", o: ["Rohtang Pass", "Nathu La", "Zoji La", "Shipki La"], a: 2 },
+            { q: "Who wrote the national song 'Vande Mataram'?", o: ["Rabindranath Tagore", "Bankim Chandra Chatterjee", "Sarojini Naidu", "Subhash Chandra Bose"], a: 1 },
+            { q: "What does USB stand for in computer terms?", o: ["Universal Serial Bus", "Unique Serial Board", "Universal System Board", "United Serial Bus"], a: 0 },
+            { q: "Who is one of the co-founders of Facebook?", o: ["Bill Gates", "Jeff Bezos", "Mark Zuckerberg", "Elon Musk"], a: 2 },
+            { q: "The famous Sun Temple is located in which town?", o: ["Puri", "Bhubaneswar", "Konark", "Cuttack"], a: 2 },
+            { q: "Ornithology is the scientific study of what?", o: ["Insects", "Birds", "Reptiles", "Plants"], a: 1 },
+            { q: "Which gas is primarily responsible for the greenhouse effect on Earth?", o: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Argon"], a: 2 }
         ];
 
         const hardPool = [
@@ -391,20 +472,36 @@
             { q: "In the hierarchy of Indian civilian awards, which award ranks immediately below the Bharat Ratna?", o: ["Padma Bhushan", "Padma Shri", "Padma Vibhushan", "Gallantry Award"], a: 2 },
             { q: "Which battle in 1764 marked the decisive victory of the British East India Company over the combined forces of the Mughals and Nawabs?", o: ["Battle of Plassey", "Battle of Buxar", "Battle of Haldighati", "Battle of Panipat"], a: 1 },
             { q: "What is the scientific name of the Indian National Bird (Peacock)?", o: ["Panthera tigris", "Pavo cristatus", "Elephas maximus", "Naja naja"], a: 1 },
-            { q: "Which Schedule of the Indian Constitution deals with the 'Anti-Defection Law'?", o: ["8th Schedule", "9th Schedule", "10th Schedule", "11th Schedule"], a: 2 }
+            { q: "Which Schedule of the Indian Constitution deals with the 'Anti-Defection Law'?", o: ["8th Schedule", "9th Schedule", "10th Schedule", "11th Schedule"], a: 2 },
+            // New Additions (15)
+            { q: "Who was the first Indian swimmer to cross the English Channel?", o: ["Mihir Sen", "Arati Saha", "Bula Choudhury", "Shikha Tandon"], a: 0 },
+            { q: "Which Article of the Indian Constitution deals with 'Financial Emergency'?", o: ["Article 352", "Article 356", "Article 360", "Article 370"], a: 2 },
+            { q: "What was the original name of the musician Tansen?", o: ["Makaranda Pandey", "Ramtanu Pandey", "Haridas", "Lal Kalavant"], a: 1 },
+            { q: "Who was the first female judge appointed to the Supreme Court of India?", o: ["Sucheta Kripalani", "Leila Seth", "Fathima Beevi", "Ruma Pal"], a: 2 },
+            { q: "In which year did the Jallianwala Bagh massacre take place?", o: ["1917", "1919", "1920", "1922"], a: 1 },
+            { q: "Which is the only non-metal that remains liquid at room temperature?", o: ["Mercury", "Bromine", "Gallium", "Caesium"], a: 1 },
+            { q: "Who gave the title 'Mahatma' to Mohandas Karamchand Gandhi?", o: ["Subhash Chandra Bose", "Rabindranath Tagore", "Gopal Krishna Gokhale", "Jawaharlal Nehru"], a: 1 },
+            { q: "The concept of the 'Preamble' in the Indian Constitution was borrowed from the constitution of which country?", o: ["UK", "Canada", "USA", "France"], a: 2 },
+            { q: "Which Chola king built the Brihadeeswarar Temple at Thanjavur?", o: ["Rajendra Chola I", "Raja Raja Chola I", "Karikala Chola", "Vijayalaya Chola"], a: 1 },
+            { q: "Who was the first Governor-General of independent India?", o: ["C. Rajagopalachari", "Lord Mountbatten", "Lord Wavell", "Dr. Rajendra Prasad"], a: 1 },
+            { q: "Who is the author of the fictional town 'Malgudi' in his stories?", o: ["Ruskin Bond", "R.K. Narayan", "Mulk Raj Anand", "Vikram Seth"], a: 1 },
+            { q: "Which village in Karnataka is known for having Sanskrit as its primary spoken language?", o: ["Mattur", "Hampi", "Gokarna", "Melukote"], a: 0 },
+            { q: "The motto 'Satyameva Jayate' is taken from which ancient text?", o: ["Rig Veda", "Mundaka Upanishad", "Bhagavad Gita", "Mahabharata"], a: 1 },
+            { q: "Who designed the Old Parliament House in New Delhi?", o: ["Le Corbusier", "Edwin Lutyens & Herbert Baker", "Charles Correa", "Bimal Patel"], a: 1 },
+            { q: "What is the approximate value of Avogadro's constant?", o: ["6.022 x 10^23", "3.14159", "9.8 m/s^2", "1.6 x 10^-19"], a: 0 }
         ];
 
         // Active questions for the current game
         let questions = [];
+        let playerName = "Player";
+        let bestScore = 0;
 
         function getRandomQuestions(pool, count) {
-            // Fisher-Yates shuffle approximation using sort
             const shuffled = [...pool].sort(() => 0.5 - Math.random());
             return shuffled.slice(0, count);
         }
 
         function generateGameQuestions() {
-            // Select 5 random questions from each pool
             questions = [
                 ...getRandomQuestions(easyPool, 5),
                 ...getRandomQuestions(mediumPool, 5),
@@ -412,7 +509,7 @@
             ];
         }
 
-        // --- AUDIO ENGINE (No external files!) ---
+        // --- AUDIO ENGINE ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
         
@@ -435,17 +532,13 @@
             },
             playClick: () => soundEngine.playTone(800, 'sine', 0.1, 0.05),
             playLock: () => {
-                // Suspenseful drone
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                
                 osc1.frequency.setValueAtTime(100, audioCtx.currentTime);
-                osc2.frequency.setValueAtTime(103, audioCtx.currentTime); // Beat freq
-                
+                osc2.frequency.setValueAtTime(103, audioCtx.currentTime);
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
-                
                 osc1.connect(gain);
                 osc2.connect(gain);
                 gain.connect(audioCtx.destination);
@@ -453,9 +546,9 @@
                 osc1.stop(audioCtx.currentTime + 2); osc2.stop(audioCtx.currentTime + 2);
             },
             playCorrect: () => {
-                soundEngine.playTone(440, 'triangle', 0.5, 0.1); // A4
-                setTimeout(() => soundEngine.playTone(554, 'triangle', 0.5, 0.1), 100); // C#5
-                setTimeout(() => soundEngine.playTone(659, 'triangle', 0.8, 0.1), 200); // E5
+                soundEngine.playTone(440, 'triangle', 0.5, 0.1);
+                setTimeout(() => soundEngine.playTone(554, 'triangle', 0.5, 0.1), 100);
+                setTimeout(() => soundEngine.playTone(659, 'triangle', 0.8, 0.1), 200);
             },
             playWrong: () => {
                 soundEngine.playTone(150, 'sawtooth', 0.8, 0.2);
@@ -464,8 +557,82 @@
             playLifeline: () => {
                 soundEngine.playTone(1200, 'sine', 0.2, 0.1);
                 setTimeout(() => soundEngine.playTone(2000, 'sine', 0.4, 0.1), 100);
+            },
+            playMilestone: () => {
+                // Fanfare
+                soundEngine.playTone(523, 'square', 0.2); // C5
+                setTimeout(() => soundEngine.playTone(659, 'square', 0.2), 150); // E5
+                setTimeout(() => soundEngine.playTone(783, 'square', 0.4), 300); // G5
+                setTimeout(() => soundEngine.playTone(1046, 'square', 0.6), 500); // C6
             }
         };
+
+        // --- CONFETTI ENGINE ---
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const ctx = confettiCanvas.getContext('2d');
+        let confettiParticles = [];
+        let confettiAnimationId = null;
+
+        function resizeCanvas() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function createConfetti(isMassive = false) {
+            const count = isMassive ? 300 : 100;
+            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f', '#fff', '#ffa500'];
+            
+            for (let i = 0; i < count; i++) {
+                confettiParticles.push({
+                    x: Math.random() * confettiCanvas.width,
+                    y: isMassive ? Math.random() * confettiCanvas.height - confettiCanvas.height : -10,
+                    w: Math.random() * 10 + 5,
+                    h: Math.random() * 10 + 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    vy: Math.random() * 5 + 2,
+                    vx: Math.random() * 4 - 2,
+                    spin: Math.random() * 0.2 - 0.1
+                });
+            }
+        }
+
+        function updateConfetti() {
+            ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            
+            confettiParticles.forEach((p, i) => {
+                p.y += p.vy;
+                p.x += p.vx;
+                p.vx += p.spin;
+                
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                
+                if (p.y > confettiCanvas.height) {
+                    confettiParticles.splice(i, 1);
+                }
+            });
+
+            if (confettiParticles.length > 0) {
+                confettiAnimationId = requestAnimationFrame(updateConfetti);
+            } else {
+                cancelAnimationFrame(confettiAnimationId);
+            }
+        }
+
+        function fireConfetti(duration = 2000, isMassive = false) {
+            if(confettiAnimationId) cancelAnimationFrame(confettiAnimationId);
+            confettiParticles = [];
+            createConfetti(isMassive);
+            updateConfetti();
+            
+            if(isMassive) {
+                // Keep adding particles for a while
+                let interval = setInterval(() => createConfetti(false), 200);
+                setTimeout(() => clearInterval(interval), duration);
+            }
+        }
 
         // --- GAME LOGIC ---
         let currentLevel = 0;
@@ -473,29 +640,48 @@
         let canAnswer = false;
         let timerInterval;
         let timeLeft = 30;
-        let lifelines = {
-            '5050': true,
-            'poll': true,
-            'ai': true
-        };
+        let lifelines = { '5050': true, 'poll': true, 'ai': true };
         let isLadderOpen = false;
+        
+        // High Score Init
+        window.onload = function() {
+            const savedScore = localStorage.getItem('kbcHighScore');
+            if(savedScore) {
+                bestScore = parseInt(savedScore);
+                document.getElementById('high-score-display').innerText = formatCurrency(bestScore);
+            }
+        };
+
+        function formatCurrency(val) {
+            if (val >= 10000000) return "₹" + (val/10000000) + " Crore";
+            if (val >= 100000) return "₹" + (val/100000) + " Lakh";
+            return "₹" + val.toLocaleString('en-IN');
+        }
 
         function startGame() {
+            const nameInput = document.getElementById('player-name').value.trim();
+            if(!nameInput) {
+                alert("Naam toh batao! (Enter your name)");
+                return;
+            }
+            playerName = nameInput;
+
             soundEngine.init();
             soundEngine.playClick();
-
-            // Generate a fresh set of questions for this session
             generateGameQuestions();
             
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             document.getElementById('game-screen').classList.add('flex');
             document.getElementById('game-over-modal').classList.add('hidden');
+            document.getElementById('milestone-modal').classList.add('hidden');
             
+            // Hide victory image on start
+            document.getElementById('victory-img').classList.add('hidden');
+
             currentLevel = 0;
             lifelines = { '5050': true, 'poll': true, 'ai': true };
             
-            // Reset UI
             document.querySelectorAll('.lifeline-used').forEach(el => el.classList.remove('lifeline-used'));
             buildLadder('desktop-money-ladder');
             buildLadder('mobile-money-ladder');
@@ -505,11 +691,8 @@
         function toggleLadder() {
             const ladder = document.getElementById('mobile-ladder');
             isLadderOpen = !isLadderOpen;
-            if(isLadderOpen) {
-                ladder.classList.add('ladder-open');
-            } else {
-                ladder.classList.remove('ladder-open');
-            }
+            if(isLadderOpen) ladder.classList.add('ladder-open');
+            else ladder.classList.remove('ladder-open');
             soundEngine.playClick();
         }
 
@@ -527,9 +710,7 @@
 
         function updateLadder() {
             const ids = ['desktop-money-ladder', 'mobile-money-ladder'];
-            
             ids.forEach(baseId => {
-                // Reset all
                 for(let i=0; i<prizeLadder.length; i++) {
                     const el = document.getElementById(`${baseId}-${i}`);
                     if(el) {
@@ -537,7 +718,6 @@
                         el.classList.add(i % 5 === 4 ? 'text-white' : 'text-orange-300');
                     }
                 }
-                // Highlight current
                 const currentEl = document.getElementById(`${baseId}-${currentLevel}`);
                 if(currentEl) {
                     currentEl.classList.remove('text-orange-300', 'text-white');
@@ -545,8 +725,6 @@
                     currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             });
-            
-            // Update prize display
             document.getElementById('current-prize-display').innerText = currentLevel > 0 ? prizeLadder[currentLevel - 1] : "₹0";
         }
 
@@ -558,17 +736,27 @@
             const qData = questions[currentLevel];
             document.getElementById('question-text').innerText = qData.q;
             
-            // Reset options UI
+            // STRONG FIX FOR STICKY MOBILE HOVER: REPLACE BUTTONS
             for(let i=0; i<4; i++) {
-                const btn = document.getElementById(`opt-${i}`);
-                btn.classList.remove('correct-answer', 'wrong-answer', 'locked-answer', 'opacity-0', 'pointer-events-none');
-                btn.querySelector('.option-text').innerText = qData.o[i];
-                btn.disabled = false;
+                const oldBtn = document.getElementById(`opt-${i}`);
+                const newBtn = oldBtn.cloneNode(true);
+                oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+                
+                // Reset styling classes completely
+                newBtn.className = "hex-btn w-full py-3 md:py-4 px-4 md:px-8 bg-gradient-to-b from-slate-900 to-black border border-indigo-500/50 text-left active:border-yellow-400 flex items-center group shadow-md min-h-[60px]";
+                newBtn.disabled = false;
+                
+                // Restore text content
+                newBtn.querySelector('.option-text').innerText = qData.o[i];
+                newBtn.querySelector('span:first-child').innerText = String.fromCharCode(65 + i) + ":";
+                
+                // Re-attach listener
+                newBtn.onclick = () => selectOption(i);
             }
 
-            // Timer Logic
+            // Timer
             clearInterval(timerInterval);
-            timeLeft = currentLevel < 5 ? 30 : currentLevel < 10 ? 60 : 0; // No timer for last levels
+            timeLeft = currentLevel < 5 ? 30 : currentLevel < 10 ? 60 : 0;
             
             const timerEl = document.getElementById('timer');
             if (timeLeft > 0) {
@@ -588,15 +776,13 @@
 
         function selectOption(index) {
             if (!canAnswer) return;
-            canAnswer = false; // Prevent multiple clicks
+            canAnswer = false;
             clearInterval(timerInterval);
             soundEngine.playLock();
 
-            // Visual: Lock Answer (Orange)
             const selectedBtn = document.getElementById(`opt-${index}`);
             selectedBtn.classList.add('locked-answer');
 
-            // Suspense Delay
             setTimeout(() => {
                 checkAnswer(index);
             }, 2000);
@@ -615,17 +801,26 @@
                 soundEngine.playCorrect();
                 
                 setTimeout(() => {
-                    currentLevel++;
-                    if (currentLevel >= questions.length) {
-                        gameWon();
+                    // MILESTONE CHECK
+                    if (currentLevel === 4) { // Level 5 (10,000)
+                        triggerMilestone("₹10,000");
+                        currentLevel++;
+                    } else if (currentLevel === 9) { // Level 10 (3,20,000)
+                        triggerMilestone("₹3,20,000");
+                        currentLevel++;
                     } else {
-                        loadQuestion();
+                        currentLevel++;
+                        if (currentLevel >= questions.length) {
+                            gameWon();
+                        } else {
+                            loadQuestion();
+                        }
                     }
                 }, 2000);
             } else {
                 // WRONG
                 selectedBtn.classList.add('wrong-answer');
-                correctBtn.classList.add('correct-answer'); // Show right answer
+                correctBtn.classList.add('correct-answer');
                 soundEngine.playWrong();
                 setTimeout(() => {
                     gameOver("Wrong Answer");
@@ -633,23 +828,35 @@
             }
         }
 
-        // --- LIFELINES ---
+        function triggerMilestone(amount) {
+            const modal = document.getElementById('milestone-modal');
+            const amountEl = document.getElementById('milestone-amount');
+            amountEl.innerText = amount;
+            modal.classList.remove('hidden');
+            soundEngine.playMilestone();
+            fireConfetti(2000, true);
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (currentLevel >= questions.length) {
+                    gameWon();
+                } else {
+                    loadQuestion();
+                }
+            }, 3000);
+        }
+
+        // --- LIFELINES (Standard Logic) ---
         function useLifeline(type) {
             if (!isGameActive || !canAnswer || !lifelines[type]) return;
-            
             soundEngine.playLifeline();
             lifelines[type] = false;
             document.getElementById(`lf-${type}`).classList.add('lifeline-used');
-
             const correctIdx = questions[currentLevel].a;
 
             if (type === '5050') {
-                // Remove 2 wrong answers
-                let removed = 0;
                 let wrongIndices = [0, 1, 2, 3].filter(i => i !== correctIdx);
-                // Shuffle to randomize which wrong ones stay
                 wrongIndices.sort(() => Math.random() - 0.5);
-                
                 wrongIndices.slice(0, 2).forEach(idx => {
                     const btn = document.getElementById(`opt-${idx}`);
                     btn.querySelector('.option-text').innerText = "";
@@ -667,12 +874,9 @@
             const container = document.getElementById('poll-bars');
             container.innerHTML = '';
             modal.classList.remove('hidden');
-
-            // Generate skewed percentages favoring correct answer
             let percentages = [0,0,0,0];
-            percentages[correctIdx] = 40 + Math.floor(Math.random() * 30); // 40-70% for correct
+            percentages[correctIdx] = 40 + Math.floor(Math.random() * 30);
             let remaining = 100 - percentages[correctIdx];
-            
             for(let i=0; i<4; i++) {
                 if(i !== correctIdx) {
                     let val = Math.floor(Math.random() * (remaining / 2));
@@ -680,24 +884,15 @@
                     remaining -= val;
                 }
             }
-            // Add leftover to a random wrong one
             let randomWrong = [0,1,2,3].filter(i => i!==correctIdx)[0];
             percentages[randomWrong] += remaining;
-
             ['A','B','C','D'].forEach((label, i) => {
                 const height = percentages[i];
                 const bar = document.createElement('div');
                 bar.className = 'flex flex-col items-center justify-end h-full w-10 md:w-12';
-                bar.innerHTML = `
-                    <div class="text-white font-bold mb-1 text-xs md:text-base">${percentages[i]}%</div>
-                    <div class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div>
-                    <div class="text-blue-300 font-bold mt-2 text-xs md:text-base">${label}</div>
-                `;
+                bar.innerHTML = `<div class="text-white font-bold mb-1 text-xs md:text-base">${percentages[i]}%</div><div class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div><div class="text-blue-300 font-bold mt-2 text-xs md:text-base">${label}</div>`;
                 container.appendChild(bar);
-                // Animate height
-                setTimeout(() => {
-                    bar.children[1].style.height = `${height}%`;
-                }, 100);
+                setTimeout(() => { bar.children[1].style.height = `${height}%`; }, 100);
             });
         }
 
@@ -706,18 +901,8 @@
             const textBox = document.getElementById('ai-response');
             modal.classList.remove('hidden');
             textBox.innerHTML = '';
-
             const options = ["Option A", "Option B", "Option C", "Option D"];
-            const explanations = [
-                "It's a common fact in this field.",
-                "I recall processing this data recently.",
-                "The other options seem logically inconsistent.",
-                "Historical records strongly support this choice."
-            ];
-            
-            const randomExp = explanations[Math.floor(Math.random() * explanations.length)];
-            const text = `I am ${90 + Math.floor(Math.random() * 9)}% confident the answer is ${options[correctIdx]}. ${randomExp}`;
-
+            const text = `I am ${90 + Math.floor(Math.random() * 9)}% confident the answer is ${options[correctIdx]}.`;
             let i = 0;
             const typeInterval = setInterval(() => {
                 textBox.innerText += text.charAt(i);
@@ -726,45 +911,115 @@
             }, 30);
         }
 
-        function closeModal(id) {
-            document.getElementById(id).classList.add('hidden');
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // --- SLANG GENERATOR ---
+        function getSlangMessage(amountValue, isWin) {
+            if(isWin) return `7 Crore! ${playerName}, tu toh Devmanus nikla!`;
+
+            if(amountValue === 0) return `Arre ${playerName} bhai, kya gunda banega re tu?`;
+            if(amountValue <= 5000) return `Tumse na ho payega, ${playerName}!`;
+            if(amountValue <= 80000) return `Thoda aur padhai karta ${playerName}, toh scene alag hota.`;
+            if(amountValue <= 320000) return `Sahi khel gaya ${playerName}! Not bad!`;
+            if(amountValue <= 5000000) return `Kadak ${playerName} bhai! Paisa hi paisa hoga!`;
+            
+            return `Well played ${playerName}!`;
+        }
+
+        function parseAmount(amtStr) {
+            if(amtStr === "₹1 Crore") return 10000000;
+            return parseInt(amtStr.replace(/[₹,]/g, ''));
         }
 
         // --- GAME END ---
         function gameOver(reason) {
             isGameActive = false;
             const modal = document.getElementById('game-over-modal');
-            document.getElementById('end-title').innerText = "GAME OVER";
-            document.getElementById('end-title').classList.add('text-red-500');
+            
+            // Hide victory image on loss
+            document.getElementById('victory-img').classList.add('hidden');
+
+            document.getElementById('end-title').innerText = "KHELA KHATAM";
+            document.getElementById('end-title').className = "text-3xl md:text-4xl font-bold text-white mb-2";
             document.getElementById('end-reason').innerText = reason;
             
-            // Calculate safety net prize
             let winAmount = "₹0";
             if (currentLevel >= 10) winAmount = "₹3,20,000";
             else if (currentLevel >= 5) winAmount = "₹10,000";
-            
             document.getElementById('final-prize').innerText = winAmount;
+
+            // Update High Score logic
+            const currentVal = parseAmount(winAmount);
+            if(currentVal > bestScore) {
+                bestScore = currentVal;
+                localStorage.setItem('kbcHighScore', bestScore);
+                document.getElementById('high-score-display').innerText = winAmount;
+            }
+
+            // Set slang
+            document.getElementById('slang-msg').innerText = getSlangMessage(currentVal, false);
+
             modal.classList.remove('hidden');
         }
 
         function gameWon() {
             isGameActive = false;
             const modal = document.getElementById('game-over-modal');
-            document.getElementById('end-title').innerText = "CROREPATI!";
-            document.getElementById('end-title').className = "text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 mb-2";
-            document.getElementById('end-reason').innerText = "You have answered all questions correctly!";
-            document.getElementById('final-prize').innerText = "₹1 Crore";
-            modal.classList.remove('hidden');
             
-            // Victory sound fanfare
-            soundEngine.playTone(523, 'sine', 0.2);
-            setTimeout(() => soundEngine.playTone(659, 'sine', 0.2), 200);
-            setTimeout(() => soundEngine.playTone(783, 'sine', 0.4), 400);
-            setTimeout(() => soundEngine.playTone(1046, 'sine', 1.0), 600);
+            // Show victory image
+            document.getElementById('victory-img').classList.remove('hidden');
+            
+            document.getElementById('end-title').innerText = "ADBHUT!";
+            document.getElementById('end-title').className = "text-5xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 mb-2";
+            document.getElementById('end-reason').innerText = "Saare sawaal sahi!";
+            document.getElementById('final-prize').innerText = "₹1 Crore";
+            
+            // Update High Score
+            const currentVal = 10000000;
+            if(currentVal > bestScore) {
+                bestScore = currentVal;
+                localStorage.setItem('kbcHighScore', bestScore);
+                document.getElementById('high-score-display').innerText = "₹1 Crore";
+            }
+
+            // Set slang
+            document.getElementById('slang-msg').innerText = getSlangMessage(currentVal, true);
+
+            modal.classList.remove('hidden');
+            soundEngine.playMilestone();
+            fireConfetti(5000, true);
         }
 
-        function restartGame() {
-            startGame();
+        function restartGame() { 
+            // Reset to start screen to ask for name again or just start? 
+            // Let's just restart keeping the name
+            startGame(); 
+        }
+
+        // --- SOCIAL SHARE ---
+        async function shareScore() {
+            const prize = document.getElementById('final-prize').innerText;
+            const text = `🔥 Maine Mastermind KBC mein ${prize} jeeta! \n\n${playerName}: "${document.getElementById('slang-msg').innerText}"\n\nHai dum toh beat kar ke dikha! 💪😎`;
+            
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Mastermind Quiz Score',
+                        text: text,
+                        url: window.location.href
+                    });
+                } catch (err) {
+                    console.log('Share failed:', err);
+                }
+            } else {
+                // Fallback for desktop
+                try {
+                    await navigator.clipboard.writeText(text);
+                    alert("Score copied to clipboard! Paste it in WhatsApp.");
+                } catch (err) {
+                    alert("Sharing not supported on this device.");
+                }
+            }
         }
 
     </script>
