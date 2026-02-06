@@ -170,7 +170,7 @@
     <canvas id="confetti-canvas"></canvas>
 
     <!-- START SCREEN -->
-    <div id="start-screen" class="z-20 text-center space-y-4 p-6 max-w-2xl w-full flex flex-col items-center justify-center h-full">
+    <div id="start-screen" class="z-20 text-center space-y-4 p-6 max-w-2xl w-full flex flex-col items-center justify-center h-full overflow-y-auto">
         <h1 class="text-5xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)] mb-2 tracking-tight">
             MASTERMIND
         </h1>
@@ -204,11 +204,11 @@
         </div>
 
         <div class="flex flex-col md:flex-row gap-4 mt-4 w-full max-w-md justify-center">
-            <button onclick="startGame('classic')" class="flex-1 px-6 py-4 bg-gradient-to-r from-indigo-800 to-blue-900 rounded-xl text-lg font-bold tracking-widest active:scale-95 transition-transform shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/50 hover:border-yellow-400">
-                CLASSIC MODE
+            <button onclick="startGame('classic')" class="flex-1 px-6 py-4 bg-gradient-to-r from-indigo-800 to-blue-900 rounded-xl text-lg font-bold tracking-widest active:scale-95 transition-transform shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/50 hover:border-yellow-400 group">
+                <div class="group-hover:scale-105 transition-transform">CLASSIC</div>
             </button>
-            <button onclick="startGame('fun')" class="flex-1 px-6 py-4 bg-gradient-to-r from-purple-800 to-pink-900 rounded-xl text-lg font-bold tracking-widest active:scale-95 transition-transform shadow-[0_0_20px_rgba(236,72,153,0.3)] border border-pink-500/50 hover:border-white">
-                FUN MODE 🎉
+            <button onclick="startGame('fun')" class="flex-1 px-6 py-4 bg-gradient-to-r from-purple-800 to-pink-900 rounded-xl text-lg font-bold tracking-widest active:scale-95 transition-transform shadow-[0_0_20px_rgba(236,72,153,0.3)] border border-pink-500/50 hover:border-white group">
+                <div class="group-hover:scale-105 transition-transform">FUN MODE 🎉</div>
             </button>
         </div>
         <p class="text-[10px] md:text-xs text-gray-500 mt-4">Tap to enable audio & voice</p>
